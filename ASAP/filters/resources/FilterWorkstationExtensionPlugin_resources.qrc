@@ -1,5 +1,0 @@
-<RCC>
-  <qresource prefix="FilterWorkstationExtensionPlugin_ui">
-    <file>FilterDockWidget.ui</file>
-  </qresource>
-</RCC>

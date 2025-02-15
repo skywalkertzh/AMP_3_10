@@ -1,8 +1,0 @@
-<RCC>
-  <qresource prefix="NucleiDetectionFilter_ui">
-    <file>NucleiDetectionFilter.ui</file>
-  </qresource>
-  <qresource prefix="NucleiDetectionFilter_icons">
-    <file>NucleiDetectionIcon.png</file>
-  </qresource>
-</RCC>
