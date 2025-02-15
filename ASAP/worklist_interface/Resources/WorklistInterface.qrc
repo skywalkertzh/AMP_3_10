@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="ASAP_Worklist_icons">
+		<file>unavailable.png</file>
+    </qresource>
+</RCC>
