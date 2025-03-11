@@ -222,7 +222,6 @@ class LeggedRobotLocomotion(LeggedRobotBase):
         foot_vel = self.simulator._rigid_body_vel[:, self.feet_indices]
         return torch.sum(torch.norm(foot_vel, dim=-1) * (torch.norm(self.simulator.contact_forces[:, self.feet_indices, :], dim=-1) > 1.), dim=1)
     
-    
     def _reward_penalty_feet_height(self):
         # Penalize base height away from target
         feet_height = self.simulator._rigid_body_pos[:,self.feet_indices, 2]

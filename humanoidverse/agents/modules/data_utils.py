@@ -20,7 +20,22 @@ def compute_returns(self, rewards, values, dones, last_values, gamma, lam):
     advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
         
 class RolloutStorage(nn.Module):
-
+    class Transition:
+        def __init__(self):
+            self.observations = None
+            self.critic_observations = None
+            self.actions = None
+            self.rewards = None
+            self.dones = None
+            self.values = None
+            self.actions_log_prob = None
+            self.action_mean = None
+            self.action_sigma = None
+            self.hidden_states = None
+        
+        def clear(self):
+            self.__init__()
+            
     def __init__(self, num_envs, num_transitions_per_env, device='cpu'):
         
         super().__init__()

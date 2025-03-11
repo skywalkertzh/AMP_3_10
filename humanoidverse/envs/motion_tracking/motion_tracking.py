@@ -33,7 +33,7 @@ class LeggedRobotMotionTracking(LeggedRobotBase):
         super().__init__(config, device)
         self._init_motion_lib()
         self._init_motion_extend()
-        self._init_tracking_config()
+        self._init_tracking_config() #set motion_tracking_id, lower_body_id, upper_body_id
 
         self.init_done = True
         self.debug_viz = True
@@ -42,11 +42,16 @@ class LeggedRobotMotionTracking(LeggedRobotBase):
 
         if self.config.use_teleop_control:
             self.teleop_marker_coords = torch.zeros(self.num_envs, 3, 3, dtype=torch.float, device=self.device, requires_grad=False)
-            import rclpy
-            from rclpy.node import Node
-            from std_msgs.msg import Float64MultiArray
-            self.node = Node("motion_tracking")
-            self.teleop_sub = self.node.create_subscription(Float64MultiArray, "vision_pro_data", self.teleop_callback, 1)
+            try:
+                import rclpy
+                from rclpy.node import Node
+                from std_msgs.msg import Float64MultiArray
+                self.node = Node("motion_tracking")
+                self.teleop_sub = self.node.create_subscription(Float64MultiArray, "vision_pro_data", self.teleop_callback, 1)
+            except ImportError:
+                logger.error("rclpy库未安装，请确保已安装ROS 2并配置环境。")
+                self.node = None
+                self.teleop_sub = None
 
         if self.config.termination.terminate_when_motion_far and self.config.termination_curriculum.terminate_when_motion_far_curriculum:
             self.terminate_when_motion_far_threshold = self.config.termination_curriculum.terminate_when_motion_far_initial_threshold
@@ -85,7 +90,13 @@ class LeggedRobotMotionTracking(LeggedRobotBase):
             self.save_motion = False
 
     def _init_motion_lib(self):
-        self.config.robot.motion.step_dt = self.dt
+        #! config has included all information,find corresponding part in config dir
+        self.config.robot.motion.step_dt = self.dt #add step_dt to config
+        """
+        #* in motion_lib_base.py:
+        self.m_cfg = motion_lib_cfg
+        self._sim_fps = 1/self.m_cfg.get("step_dt", 1/50)
+        """
         self._motion_lib = MotionLibRobot(self.config.robot.motion, num_envs=self.num_envs, device=self.device)
         if self.is_evaluating:
             self._motion_lib.load_motions(random_sample=False)
@@ -146,7 +157,7 @@ class LeggedRobotMotionTracking(LeggedRobotBase):
         self.vr_3point_marker_coords = torch.zeros(self.num_envs, 3, 3, dtype=torch.float, device=self.device, requires_grad=False)
         self.realtime_vr_keypoints_pos = torch.zeros(3, 3, dtype=torch.float, device=self.device, requires_grad=False) # hand, hand, head
         self.realtime_vr_keypoints_vel = torch.zeros(3, 3, dtype=torch.float, device=self.device, requires_grad=False) # hand, hand, head
-        self.motion_ids = torch.arange(self.num_envs).to(self.device)
+        self.motion_ids = torch.arange(self.num_envs).to(self.device) #! motion id = env_id/num_envs
         self.motion_start_times = torch.zeros(self.num_envs, dtype=torch.float32, device=self.device, requires_grad=False)
         self.motion_len = torch.zeros(self.num_envs, dtype=torch.float32, device=self.device, requires_grad=False)
         
@@ -234,7 +245,6 @@ class LeggedRobotMotionTracking(LeggedRobotBase):
         motion_times = (self.episode_length_buf + 1) * self.dt + self.motion_start_times # next frames so +1
         # motion_res = self._get_state_from_motionlib_cache_trimesh(self.motion_ids, motion_times, offset= offset)
         motion_res = self._motion_lib.get_motion_state(self.motion_ids, motion_times, offset=offset)
-
         ref_body_pos_extend = motion_res["rg_pos_t"]
         self.ref_body_pos_extend[:] = ref_body_pos_extend # for visualization and analysis
         ref_body_vel_extend = motion_res["body_vel_t"] # [num_envs, num_markers, 3]
@@ -242,7 +252,6 @@ class LeggedRobotMotionTracking(LeggedRobotBase):
         ref_body_ang_vel_extend = motion_res["body_ang_vel_t"] # [num_envs, num_markers, 3]
         ref_joint_pos = motion_res["dof_pos"] # [num_envs, num_dofs]
         ref_joint_vel = motion_res["dof_vel"] # [num_envs, num_dofs]
-
 
         ################### EXTEND Rigid body POS #####################
         rotated_pos_in_parent = my_quat_rotate(
@@ -481,7 +490,6 @@ class LeggedRobotMotionTracking(LeggedRobotBase):
 
     def _post_physics_step(self):
         super()._post_physics_step()
-        
         if self.save_motion:    
             motion_times = (self.episode_length_buf) * self.dt + self.motion_start_times
 
@@ -537,6 +545,8 @@ class LeggedRobotMotionTracking(LeggedRobotBase):
             self.motion_times_buf.append(motion_times.cpu())
 
             self.start_save = True
+            
+            import ipdb; ipdb.set_trace()
 
     # ############################################################
         

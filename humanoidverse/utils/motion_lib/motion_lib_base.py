@@ -43,6 +43,9 @@ def to_torch(tensor):
         return torch.from_numpy(tensor)
 
 class MotionLibBase():
+    """
+    self._motion_lib = MotionLibRobot(self.config.robot.motion, num_envs=self.num_envs, device=self.device)
+    """
     def __init__(self, motion_lib_cfg, num_envs, device):
         self.m_cfg = motion_lib_cfg
         self._sim_fps = 1/self.m_cfg.get("step_dt", 1/50)
@@ -86,6 +89,7 @@ class MotionLibBase():
         
         self._num_unique_motions = len(self._motion_data_list)
         if self.mode == MotionlibMode.directory:
+            import ipdb; ipdb.set_trace()
             self._motion_data_load = joblib.load(self._motion_data_load[0]) # set self._motion_data_load to a sample of the data 
         logger.info(f"Loaded {self._num_unique_motions} motions")
 
@@ -113,6 +117,7 @@ class MotionLibBase():
         return action
 
     def get_motion_state(self, motion_ids, motion_times, offset=None):
+
         motion_len = self._motion_lengths[motion_ids]
         num_frames = self._motion_num_frames[motion_ids]
         dt = self._motion_dt[motion_ids]
@@ -274,8 +279,7 @@ class MotionLibBase():
             motion_fps = curr_motion.fps
             curr_dt = 1.0 / motion_fps
             num_frames = curr_motion.global_rotation.shape[0]
-            curr_len = 1.0 / motion_fps * (num_frames - 1)
-
+            curr_len = 1.0 / motion_fps * (num_frames - 1) #! motion_time calculation
             if "beta" in motion_file_data:
                 _motion_aa.append(motion_file_data['pose_aa'].reshape(-1, self.num_joints * 3))
                 _motion_bodies.append(curr_motion.gender_beta)
@@ -298,9 +302,11 @@ class MotionLibBase():
                 self.q_gvs.append(curr_motion.quest_motion['linear_vel'])
                 
             del curr_motion
-        
+
         self._motion_lengths = torch.tensor(_motion_lengths, device=self._device, dtype=torch.float32)
         self._motion_fps = torch.tensor(_motion_fps, device=self._device, dtype=torch.float32)
+        if not _motion_bodies:
+            raise ValueError("No valid motions found to stack.")
         self._motion_bodies = torch.stack(_motion_bodies).to(self._device).type(torch.float32)
         self._motion_aa = torch.tensor(np.concatenate(_motion_aa), device=self._device, dtype=torch.float32)
 
@@ -328,7 +334,6 @@ class MotionLibBase():
         
         if "dof_pos" in motions[0].__dict__:
             self.dof_pos = torch.cat([m.dof_pos for m in motions], dim=0).float().to(self._device)
-        # import ipdb; ipdb.set_trace()
         if flags.real_traj:
             self.q_gts = torch.cat(self.q_gts, dim=0).float().to(self._device)
             self.q_grs = torch.cat(self.q_grs, dim=0).float().to(self._device)
@@ -440,8 +445,8 @@ class MotionLibBase():
             return self._motion_lengths[motion_ids]
 
 
-    def _calc_frame_blend(self, time, len, num_frames, dt):
-        time = time.clone()
+    def _calc_frame_blend(self, time, len, num_frames, dt): # get time stamp of corresponding frame
+        time = time.clone() # total time
         phase = time / len
         phase = torch.clip(phase, 0.0, 1.0)  # clip time to be within motion length.
         time[time < 0] = 0

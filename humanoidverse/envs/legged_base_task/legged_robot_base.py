@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import os
 
 from humanoidverse.utils.torch_utils import *
-# from isaacgym import gymtorch, gymapi, gymutil
+from isaacgym import gymtorch, gymapi, gymutil
 
 import torch
 from torch import Tensor
@@ -268,7 +268,6 @@ class LeggedRobotBase(BaseTask):
 
         for key in self.history_handler.history.keys():
             self.history_handler.add(key, self.hist_obs_dict[key])
-
         self.extras["to_log"] = self.log_dict
         if self.viewer:
             self._setup_simulator_control()
@@ -326,7 +325,10 @@ class LeggedRobotBase(BaseTask):
             self.reset_buf |= torch.any(torch.norm(self.simulator.contact_forces[:, self.termination_contact_indices, :], dim=-1) > 1., dim=1)
 
         if self.config.termination.terminate_by_gravity:
-            # print(self.projected_gravity)
+            #!
+            self.reset_buf |= torch.any(torch.abs(self.projected_gravity[:, 0:1]) > self.config.termination_scales.termination_gravity_x, dim=1)
+            self.reset_buf |= torch.any(torch.abs(self.projected_gravity[:, 1:2]) > self.config.termination_scales.termination_gravity_y, dim=1) 
+            #!
             self.reset_buf |= torch.any(torch.abs(self.projected_gravity[:, 0:1]) > self.config.termination_scales.termination_gravity_x, dim=1)
             self.reset_buf |= torch.any(torch.abs(self.projected_gravity[:, 1:2]) > self.config.termination_scales.termination_gravity_y, dim=1)
         if self.config.termination.terminate_by_low_height:
